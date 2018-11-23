@@ -19,7 +19,7 @@ ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH',  'BTC-XMR', 'BTC-NEO', 'BTC-XLM', 'BTC-PO
 
 TRAIN_VERSION = 'label_test12'
 
-port = 7000
+port = 7100
 
 
 def connect_mongo():
@@ -347,5 +347,5 @@ def update_output(value):
 def update_output(value):
     return text_box(value, TRAIN_VERSION)
 
-if __name__ == '__main__':
-    app.run_server(debug=True, use_reloader=False, port=port)
+#if __name__ == '__main__':
+#    app.run_server(debug=True, use_reloader=False, port=port)
