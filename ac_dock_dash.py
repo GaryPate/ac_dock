@@ -8,13 +8,32 @@ import dash_html_components as html
 import plotly.graph_objs as go
 from plotly import tools
 import numpy as np
-from ac_dock_api import ExchangeConn
-from ac_dock_config import ORDER_MARKETS, TRAIN_VERSION
+from pymongo import MongoClient
+from pymongo import errors as pe
+from pymongo import ReadPreference
 
 app = dash.Dash('Bittrex Trading Bot UI')
 app.config['SERVER_NAME'] = 'acbotgo.com'
 
+ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH',  'BTC-XMR', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-ADA', 'BTC-KMD', 'BTC-PIVX', 'BTC-OMG', 'BTC-LSK']
+
+TRAIN_VERSION = 'label_test12'
+
 port = 7000
+
+
+def connect_mongo():
+    try:
+        connection = MongoClient(
+            'mongodb://admin:ncc1701d@cluster1-shard-00-00-dvlfk.mongodb.net:27017,cluster1-shard-00-01-dvlfk.mongodb.net:27017,cluster1-shard-00-02-dvlfk.mongodb.net:27017/test?ssl=true&replicaSet=Cluster1-shard-0&authSource=admin&retryWrites=true',
+            maxPoolSize=5, connect=True,
+            read_preference=ReadPreference.NEAREST,
+            readPreference='secondaryPreferred')
+
+        return connection
+
+    except pe.ServerSelectionTimeoutError as e:
+        return 'connection fail'
 
 def retrieve_test_from_mongo(market, version, db):
 
@@ -68,7 +87,7 @@ def trend_color_sel(variable):
 
 
 def text_box(market, version):
-    db = ExchangeConn().connect_mongo()
+    db = connect_mongo()
     con = db.testbed['test_' + version]
     data = con.find_one({'market': market})
     dash_log = np.array(data['model_summary'])
@@ -109,7 +128,7 @@ def argmax(null1, null2, prob1, prob2):
 
 def plot_update_pred(market):
 
-    db = ExchangeConn().connect_mongo()
+    db = connect_mongo()
 
     _, close, date, null1, null2, prob1, prob2 = retrieve_test_from_mongo(market, version=TRAIN_VERSION, db=db)
     labels, close_train, date_train = retrieve_train_from_mongo(market, version=TRAIN_VERSION, db=db)
