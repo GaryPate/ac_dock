@@ -362,10 +362,10 @@ def serve_layout():
                 style={'font-family': 'helvetica', 'margin-left': 50, 'margin-right': 50, 'font-size': 32}),
 
             html.H6(
-                children='A Tensorflow Deep Recurrent Neural Net that predicts entry/exit points for short term trades. Data obtained from BITTREX exchange API.'
-                         'The top cell shows prediction on unseen data. The middle two cells show the decision thresholds for the class labels.'
-                         'The bottom cell shows labelled data from this particular time series used to train the overall model. Different currencies can be loaded via the dropdown menu.'
-                         'Model developed with Keras, Numpy and Sci-kit, visualization in Dash and hosted with Docker.',
+                children='A Tensorflow Deep Recurrent Neural Net that predicts entry/exit points for short term trades. Data was obtained from BITTREX exchange API.'
+                         'The top cell shows prediction on unseen data. The middle two cells show the decision thresholds for the class labels. '
+                         'The second last row shows labelled data from this time series used to train the model. The last row shows calibration metrics. Different currencies can be selected via the dropdown and '
+                         'load the prediction of the model at that point in time. Developed with Keras, Numpy and Sci-kit, visualization in Dash and deployed with Docker.',
                 style={'font-family': 'helvetica', 'margin-left': 50, 'margin-right': 50, 'font-size': 16}),
 
             html.Div([
