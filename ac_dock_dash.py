@@ -17,7 +17,7 @@ import pandas as pd
 app = dash.Dash('Bittrex Trading Bot UI')
 app.config['SERVER_NAME'] = 'acbotgo.com'
 
-ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH',  'BTC-XMR', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-ADA', 'BTC-KMD', 'BTC-PIVX', 'BTC-OMG', 'BTC-LSK']
+ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-OMG', 'BTC-LSK']
 
 TRAIN_VERSION = '2411_dem_1'
 
@@ -71,7 +71,6 @@ def retrieve_train_from_mongo(market, version, db):
     acc2 = np.array(data['acc2'])
     val_acc1 = np.array(data['val_acc1'])
     val_acc2 = np.array(data['val_acc2'])
-
 
     return labels, close, date, loss1, loss2, val_loss1, val_loss2, acc1, acc2, val_acc1, val_acc2
 
@@ -142,6 +141,17 @@ def argmax(null1, null2, prob1, prob2):
             y_hat.append(0)
 
     return y_hat
+
+def simple_scatter(y_, col_='red'):
+    print(range(len(y_)))
+    trace_ = go.Scatter(
+        x=np.arange(len(y_)),
+        y=y_,
+        line=dict(color=col_, width=1.5),
+        showlegend=False
+    )
+
+    return trace_
 
 
 def plot_update_pred(market):
@@ -270,6 +280,11 @@ def plot_update_pred(market):
         line=dict(color='rgb(210,0,0)', width=1.5),
         showlegend=False
     )
+
+    acc1 = simple_scatter(acc1)
+    val_acc1 = simple_scatter(val_acc1, col_='blue')
+    acc2 = simple_scatter(acc2)
+    val_acc2 = simple_scatter(val_acc2, col_='blue')
 
     tit1 = 'Prediction on unseen price data - {}'.format(market)
     tit2 = 'Probability of Buy label (green) and Null label (grey)'
