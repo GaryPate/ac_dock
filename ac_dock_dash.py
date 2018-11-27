@@ -11,21 +11,23 @@ import numpy as np
 from pymongo import MongoClient
 from pymongo import errors as pe
 from pymongo import ReadPreference
+from sklearn.metrics import roc_curve, precision_recall_curve
+import pandas as pd
+from mdb_config import mdb_key
 
 app = dash.Dash('Bittrex Trading Bot UI')
 app.config['SERVER_NAME'] = 'acbotgo.com'
 
 ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH',  'BTC-XMR', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-ADA', 'BTC-KMD', 'BTC-PIVX', 'BTC-OMG', 'BTC-LSK']
 
-TRAIN_VERSION = 'label_test12'
+TRAIN_VERSION = '2411_dem_1'
 
 port = 7100
 
 
 def connect_mongo():
     try:
-        connection = MongoClient(
-            'mongodb://admin:ncc1701d@cluster1-shard-00-00-dvlfk.mongodb.net:27017,cluster1-shard-00-01-dvlfk.mongodb.net:27017,cluster1-shard-00-02-dvlfk.mongodb.net:27017/test?ssl=true&replicaSet=Cluster1-shard-0&authSource=admin&retryWrites=true',
+        connection = MongoClient(mdb_key,
             maxPoolSize=5, connect=True,
             read_preference=ReadPreference.NEAREST,
             readPreference='secondaryPreferred')
@@ -40,6 +42,7 @@ def retrieve_test_from_mongo(market, version, db):
     collection = db.testbed['test_' + version]
     data = collection.find_one({'market': market})
     pred = np.array(data['pred'])
+    labels = np.array(data['labels'])
     close = np.array(data['close'])
     date = np.array(data['date'])
     null1 = np.array(data['null1'])
@@ -47,7 +50,11 @@ def retrieve_test_from_mongo(market, version, db):
     prob1 = np.array(data['prob1'])
     prob2 = np.array(data['prob2'])
 
-    return pred, close, date, null1, null2, prob1, prob2
+    ls = []
+    for n in range(1, 8):
+        ls.append(np.array(data['ft{}'.format(n)]))
+
+    return pred, labels, close, date, null1, null2, prob1, prob2, np.column_stack(ls)
 
 def retrieve_train_from_mongo(market, version, db):
 
@@ -56,8 +63,17 @@ def retrieve_train_from_mongo(market, version, db):
     labels = np.array(data['labels'])
     close = np.array(data['close'])
     date = np.array(data['date'])
+    loss1 = np.array(data['loss1'])
+    loss2 = np.array(data['loss2'])
+    val_loss1 = np.array(data['val_loss1'])
+    val_loss2 = np.array(data['val_loss2'])
+    acc1 = np.array(data['acc1'])
+    acc2 = np.array(data['acc2'])
+    val_acc1 = np.array(data['val_acc1'])
+    val_acc2 = np.array(data['val_acc2'])
 
-    return labels, close, date
+
+    return labels, close, date, loss1, loss2, val_loss1, val_loss2, acc1, acc2, val_acc1, val_acc2
 
 def color_selector(variable):
     ret = []
@@ -85,6 +101,9 @@ def trend_color_sel(variable):
             ret.append('black')
     return ret
 
+def correlate(npa):
+    corr_df_ = pd.DataFrame(npa)
+    return corr_df_.corr()
 
 def text_box(market, version):
     db = connect_mongo()
@@ -100,8 +119,7 @@ __Keras Model Summary__:
 {}
 ```            
 '''.format(str_log))
-        ]# 'margin': 0
-        #, className="three columns", style={'background-color': 'gray'}
+        ]
     )
     return div
 
@@ -130,12 +148,42 @@ def plot_update_pred(market):
 
     db = connect_mongo()
 
-    _, close, date, null1, null2, prob1, prob2 = retrieve_test_from_mongo(market, version=TRAIN_VERSION, db=db)
-    labels, close_train, date_train = retrieve_train_from_mongo(market, version=TRAIN_VERSION, db=db)
+    _, y_true, close, date, null1, null2, prob1, prob2, feat_arr = retrieve_test_from_mongo(market, version=TRAIN_VERSION, db=db)
+    labels, close_train, date_train, loss1, loss2, val_loss1, val_loss2, acc1, acc2, val_acc1, val_acc2 = retrieve_train_from_mongo(market, version=TRAIN_VERSION, db=db)
 
     db.close()
 
     pred = argmax(null1, null2, prob1, prob2)
+
+    labels_1 = np.zeros_like(y_true)
+    labels_2 = np.zeros_like(y_true)
+
+    labels_1[y_true == 1] = 1
+    labels_2[y_true == 2] = 1
+
+    roc_1 = roc_curve(labels_1[-prob1.shape[0]:], prob1)
+    roc_2 = roc_curve(labels_2[-prob1.shape[0]:], prob2)
+
+    corr_df = correlate(feat_arr)
+
+    ht_labels = ['CCA', 'Bollinger', 'Difference', 'OB Volume', 'Kurtosis', 'Skew', 'RSI']
+    trace_heat0 = go.Heatmap(z=corr_df.values.tolist(), colorscale='Cividis',
+                             x=ht_labels, y=ht_labels,
+                             colorbar=dict(len=0.3, y=0.125))
+
+    trace_roc1 = go.Scatter(
+        x=roc_1[0],
+        y=roc_1[1],
+        line=dict(color='rgb(0,220,0)', width=1.5),
+        showlegend=False
+    )
+
+    trace_roc2 = go.Scatter(
+        x=roc_2[0],
+        y=roc_2[1],
+        line=dict(color='rgb(220,0,0)', width=1.5),
+        showlegend=False
+    )
 
     trace_train_0 = go.Scatter(
         x=date_train,
@@ -165,7 +213,6 @@ def plot_update_pred(market):
         name='Max Predict',
         showlegend=False
     )
-
 
     trace_replay_0 = go.Scatter(
         x=date,
@@ -224,38 +271,46 @@ def plot_update_pred(market):
         showlegend=False
     )
 
-
-    # Titles
-    tit1 = 'Test on unseen price data - {}'.format(market)
-    tit2 = 'Model Probability of Buy label (green) and Null label (grey)'
-    tit3 = 'Model Probability of Sell label (red) and Null label (grey)'
+    tit1 = 'Prediction on unseen price data - {}'.format(market)
+    tit2 = 'Probability of Buy label (green) and Null label (grey)'
+    tit3 = 'Probability of Sell label (red) and Null label (grey)'
     tit4 = 'Training set showing Buy (green) and Sell (green) labels'
+    tit5 = 'Receiver Operating Characteristic'
+    tit6 = 'Train Acc. Buy - Train (Red) Val. (Blue)'
+    tit7 = 'Train Acc. Sell - Train (Red) Val. (Blue)'
+    tit8 = 'Feature Correlation Heatmap'
 
-    fig_ta = tools.make_subplots(rows=4,
-                                 cols=3,
-                                 specs=[[{'colspan': 3}, None, None],
-                                        [{'colspan': 3}, None, None],
-                                        [{'colspan': 3}, None, None],
-                                        [{'colspan': 3}, None, None],
+    fig_ta = tools.make_subplots(rows=6,
+                                 cols=6,
+                                 specs=[[{'colspan': 6}, None, None, None, None, None],
+                                        [{'colspan': 6}, None, None, None, None, None],
+                                        [{'colspan': 6}, None, None, None, None, None],
+                                        [{'colspan': 6}, None, None, None, None, None],
+                                        [{'colspan': 2, 'rowspan': 2}, None, {'colspan': 2}, None, {'colspan': 2, 'rowspan': 2}, None],
+                                        [None, None, {'colspan': 2}, None, None, None]
                                         ],
-                                 horizontal_spacing=0.05,
+                                 horizontal_spacing=0.08,
                                  vertical_spacing=0.08,
-                                 subplot_titles=(tit1, tit2, tit3, tit4))
+                                 subplot_titles=(tit1, tit2, tit3, tit4, tit5, tit6, tit8, tit7))
 
     trace_pred = [trace_replay_0, trace_replay_kmin, trace_replay_kmax]
     trace_dec1 = [trace_null1, trace_prob1]
     trace_dec2 = [trace_null2, trace_prob2]
     trace_train = [trace_train_0, trace_train_kmin, trace_train_kmax]
-    trace_list = [trace_pred, trace_dec1, trace_dec2, trace_train]
-    trace_positions = [[1, 1], [2, 1], [3, 1], [4, 1]]
+    trace_roc = [trace_roc1, trace_roc2]
+    trace_heat = [trace_heat0]
+    trace_acc1 = [acc1, val_acc1]
+    trace_acc2 = [acc2, val_acc2]
 
-    # Places individual graphs into page based on lists
+    trace_list = [trace_pred, trace_dec1, trace_dec2, trace_train, trace_roc, trace_acc1, trace_acc2, trace_heat]
+    trace_positions = [[1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [5, 3], [6, 3], [5, 5]]
+
     for trace, pos in zip(trace_list, trace_positions):
         for t in trace:
             fig_ta.append_trace(t, pos[0], pos[1])
 
     fig_ta['layout'].update(showlegend=True,
-                            height=900,
+                            height=700,
                             paper_bgcolor='rgba(0,0,0,0)',
                             plot_bgcolor='rgba(235,230,225,255)',
                             font=dict(size=11, color='#383737'),
@@ -265,8 +320,12 @@ def plot_update_pred(market):
                                 b=70,
                                 t=20,
                                 pad=2
-                            )
+                            ),
                     )
+    fig_ta['layout']['xaxis5'].update(title='False Positive Rate')
+    fig_ta['layout']['yaxis5'].update(title='True Positive Rate')
+    fig_ta['layout']['xaxis8'].update(title='Training Epochs')
+
     return fig_ta
 
 
@@ -287,11 +346,11 @@ def serve_layout():
                 style={'font-family': 'helvetica', 'margin-left': 50, 'margin-right': 50, 'font-size': 32}),
 
             html.H6(
-                children='A Tensorflow Deep Recurrent Neural Net (LSTM) that predicts entry/exit points for short term trades. Data obtained from BITTREX exchange API.'
+                children='A Tensorflow Deep Recurrent Neural Net that predicts entry/exit points for short term trades. Data obtained from BITTREX exchange API.'
                          'The top cell shows prediction on unseen data. The middle two cells show the decision thresholds for the class labels.'
                          'The bottom cell shows labelled data from this particular time series used to train the overall model. Different currencies can be loaded via the dropdown menu.'
                          'Model developed with Keras, Numpy and Sci-kit, visualization in Dash and hosted with Docker.',
-                style={'font-family': 'helvetica', 'margin-left': 50, 'margin-right': 50, 'font-size': 22}),
+                style={'font-family': 'helvetica', 'margin-left': 50, 'margin-right': 50, 'font-size': 16}),
 
             html.Div([
                 html.Div([
@@ -301,7 +360,7 @@ def serve_layout():
                         value=dl[0],
                     )],
                     style={'width': '20%', 'font-family': 'helvetica', 'float': 'left', 'padding': 0, 'margin-left': 80,
-                           'margin-top': 10, 'margin-bottom': 10, 'font-size': 18}),
+                           'margin-top': 10, 'margin-bottom': 10, 'font-size': 16}),
 
             ], style={'height': 80, 'width': '100%', 'margin': 0, 'padding': 0}),
 
@@ -316,13 +375,16 @@ def serve_layout():
                         ], className="row", style={'border': 1, 'color': 'solid black'}),
 
                     ], className="row"),
-                ], className="nine columns"),
-                html.Div([
-                    html.Div(id='info_box',
-                    children=text_box(dl[0], TRAIN_VERSION))
-                ], className="three columns", style= {'padding': 0, 'margin-left': 10,
-                           'margin-right': 30}),
+                ], className="twelve columns"),
+
+                # html.Div([
+                #     html.Div(id='info_box',
+                #     children=text_box(dl[0], TRAIN_VERSION, v_mode))
+                # ], className="two columns", style= {'padding': 0, 'margin-left': 10,
+                #            'margin-right': 30, 'font-size': 8}),
+
             ], className="row"),
+
         ]
     )
 
@@ -341,11 +403,11 @@ server = app.server
 def update_output(value):
     return plot_update_pred(value)
 
-@app.callback(
-    dash.dependencies.Output('info_box', 'children'),
-    [dash.dependencies.Input('market_select', 'value')])
-def update_output(value):
-    return text_box(value, TRAIN_VERSION)
+# @app.callback(
+#     dash.dependencies.Output('info_box', 'children'),
+#     [dash.dependencies.Input('market_select', 'value')])
+# def update_output(value):
+#     return text_box(value, TRAIN_VERSION)
 
 #if __name__ == '__main__':
 #    app.run_server(debug=True, use_reloader=False, port=port)
