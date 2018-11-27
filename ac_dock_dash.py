@@ -13,7 +13,6 @@ from pymongo import errors as pe
 from pymongo import ReadPreference
 from sklearn.metrics import roc_curve, precision_recall_curve
 import pandas as pd
-from mdb_config import mdb_key
 
 app = dash.Dash('Bittrex Trading Bot UI')
 app.config['SERVER_NAME'] = 'acbotgo.com'
@@ -27,7 +26,8 @@ port = 7100
 
 def connect_mongo():
     try:
-        connection = MongoClient(mdb_key,
+        connection = MongoClient(
+            'mongodb://admin:ncc1701d@cluster1-shard-00-00-dvlfk.mongodb.net:27017,cluster1-shard-00-01-dvlfk.mongodb.net:27017,cluster1-shard-00-02-dvlfk.mongodb.net:27017/test?ssl=true&replicaSet=Cluster1-shard-0&authSource=admin&retryWrites=true',
             maxPoolSize=5, connect=True,
             read_preference=ReadPreference.NEAREST,
             readPreference='secondaryPreferred')
