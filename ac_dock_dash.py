@@ -325,7 +325,8 @@ def plot_update_pred(market):
             fig_ta.append_trace(t, pos[0], pos[1])
 
     fig_ta['layout'].update(showlegend=True,
-                            height=700,
+                            height=900,
+                            width=1600,
                             paper_bgcolor='rgba(0,0,0,0)',
                             plot_bgcolor='rgba(235,230,225,255)',
                             font=dict(size=11, color='#383737'),
