@@ -19,7 +19,7 @@ app.config['SERVER_NAME'] = 'acbotgo.com'
 
 ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-OMG', 'BTC-LSK']
 
-TRAIN_VERSION = '2411_dem_1'
+TRAIN_VERSION = '2411_dem_2'
 
 port = 7100
 
