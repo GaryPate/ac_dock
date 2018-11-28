@@ -1,5 +1,0 @@
-
-
-ORDER_MARKETS = ['BTC-LTC', 'BTC-ETH',  'BTC-XMR', 'BTC-NEO', 'BTC-XLM', 'BTC-POWR', 'BTC-ADA', 'BTC-KMD', 'BTC-PIVX', 'BTC-OMG', 'BTC-LSK']
-
-TRAIN_VERSION = 'label_test12'
