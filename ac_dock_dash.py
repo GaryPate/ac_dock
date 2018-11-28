@@ -393,12 +393,6 @@ def serve_layout():
                     ], className="row"),
                 ], className="twelve columns"),
 
-                # html.Div([
-                #     html.Div(id='info_box',
-                #     children=text_box(dl[0], TRAIN_VERSION, v_mode))
-                # ], className="two columns", style= {'padding': 0, 'margin-left': 10,
-                #            'margin-right': 30, 'font-size': 8}),
-
             ], className="row"),
 
         ]
@@ -419,11 +413,3 @@ server = app.server
 def update_output(value):
     return plot_update_pred(value)
 
-# @app.callback(
-#     dash.dependencies.Output('info_box', 'children'),
-#     [dash.dependencies.Input('market_select', 'value')])
-# def update_output(value):
-#     return text_box(value, TRAIN_VERSION)
-
-#if __name__ == '__main__':
-#    app.run_server(debug=True, use_reloader=False, port=port)
